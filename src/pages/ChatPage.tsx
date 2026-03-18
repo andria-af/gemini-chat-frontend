@@ -23,11 +23,13 @@ import type { IMessage } from "../types/message";
 import { AppSnackbar } from "../components/AppSnackbar";
 import { clearUser, getUser } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
+import { useThemeMode } from "../context/ThemeModeContext";
 
 export default function ChatPage() {
   const user = getUser();
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const { mode, toggleMode } = useThemeMode();
 
   const [conversations, setConversations] = useState<IConversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
@@ -186,6 +188,10 @@ export default function ChatPage() {
 
               <Button variant="outlined" onClick={handleLogout}>
                 Sair
+              </Button>
+
+              <Button variant="outlined" onClick={toggleMode}>
+                {mode === "light" ? "Tema escuro" : "Tema claro"}
               </Button>
             </Stack>
           </Stack>
