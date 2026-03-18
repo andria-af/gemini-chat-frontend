@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  CircularProgress,
   Divider,
   List,
   ListItemButton,
   ListItemText,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { getUser } from '../utils/auth';
@@ -16,21 +18,30 @@ import {
   getConversationMessages,
   getUserConversations,
 } from '../services/conversation.service';
+import { sendMessage } from '../services/chat.service';
 import type { IConversation } from '../types/conversation';
 import type { IMessage } from '../types/message';
 
 export default function ChatPage() {
   const user = getUser();
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
   const [conversations, setConversations] = useState<IConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<IConversation | null>(null);
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const [input, setInput] = useState('');
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     loadConversations(user.id);
   }, [user?.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, sendingMessage]);
 
   async function loadConversations(userId: string) {
     try {
@@ -53,6 +64,7 @@ export default function ChatPage() {
     setConversations((prev) => [newConversation, ...prev]);
     setSelectedConversation(newConversation);
     setMessages([]);
+    setInput('');
   }
 
   async function handleSelectConversation(conversation: IConversation) {
@@ -63,6 +75,51 @@ export default function ChatPage() {
       setMessages(data);
     } finally {
       setLoadingMessages(false);
+    }
+  }
+
+  async function handleSendMessage() {
+    if (!selectedConversation || !input.trim() || sendingMessage) return;
+
+    const content = input.trim();
+    setInput('');
+    setSendingMessage(true);
+
+    const optimisticUserMessage: IMessage = {
+      id: `temp-user-${Date.now()}`,
+      conversationId: selectedConversation.id,
+      role: 'user',
+      content,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticUserMessage]);
+
+    try {
+      const response = await sendMessage({
+        conversationId: selectedConversation.id,
+        content,
+      });
+
+      setMessages((prev) => {
+        const withoutTemp = prev.filter((msg) => msg.id !== optimisticUserMessage.id);
+        return [...withoutTemp, response.userMessage, response.assistantMessage];
+      });
+
+      const updatedConversations = await getUserConversations(user!.id);
+      setConversations(updatedConversations);
+
+      const updatedSelected = updatedConversations.find(
+        (conversation) => conversation.id === selectedConversation.id
+      );
+
+      if (updatedSelected) {
+        setSelectedConversation(updatedSelected);
+      }
+    } catch {
+      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticUserMessage.id));
+    } finally {
+      setSendingMessage(false);
     }
   }
 
@@ -121,7 +178,7 @@ export default function ChatPage() {
           </List>
         </Box>
 
-        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {!selectedConversation ? (
             <Box
               sx={{
@@ -135,38 +192,90 @@ export default function ChatPage() {
                 Selecione ou crie uma conversa para começar.
               </Typography>
             </Box>
-          ) : loadingMessages ? (
-            <Typography>Carregando mensagens...</Typography>
           ) : (
-            <Stack spacing={2}>
-              <Typography variant="h6" fontWeight={700}>
+            <>
+              <Typography variant="h6" fontWeight={700} mb={2}>
                 {selectedConversation.title || 'Conversa'}
               </Typography>
 
-              {messages.length === 0 ? (
-                <Typography color="text.secondary">
-                  Ainda não há mensagens nesta conversa.
-                </Typography>
-              ) : (
-                messages.map((message) => (
+              <Box
+                sx={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  pr: 1,
+                }}
+              >
+                {loadingMessages ? (
+                  <Typography>Carregando mensagens...</Typography>
+                ) : messages.length === 0 ? (
+                  <Typography color="text.secondary">
+                    Ainda não há mensagens nesta conversa.
+                  </Typography>
+                ) : (
+                  messages.map((message) => (
+                    <Paper
+                      key={message.id}
+                      sx={{
+                        p: 2,
+                        alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                        maxWidth: '75%',
+                        borderRadius: 3,
+                      }}
+                      variant="outlined"
+                    >
+                      <Typography variant="caption" display="block" mb={0.5}>
+                        {message.role === 'user' ? 'Você' : 'Gemini'}
+                      </Typography>
+                      <Typography>{message.content}</Typography>
+                    </Paper>
+                  ))
+                )}
+
+                {sendingMessage && (
                   <Paper
-                    key={message.id}
                     sx={{
                       p: 2,
-                      alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                      alignSelf: 'flex-start',
                       maxWidth: '75%',
                       borderRadius: 3,
                     }}
                     variant="outlined"
                   >
-                    <Typography variant="caption" display="block" mb={0.5}>
-                      {message.role === 'user' ? 'Você' : 'Gemini'}
-                    </Typography>
-                    <Typography>{message.content}</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CircularProgress size={18} />
+                      <Typography>Gemini está respondendo...</Typography>
+                    </Stack>
                   </Paper>
-                ))
-              )}
-            </Stack>
+                )}
+
+                <div ref={bottomRef} />
+              </Box>
+
+              <Stack direction="row" spacing={2} mt={2}>
+                <TextField
+                  fullWidth
+                  placeholder="Digite sua mensagem..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleSendMessage}
+                  disabled={!input.trim() || sendingMessage}
+                >
+                  Enviar
+                </Button>
+              </Stack>
+            </>
           )}
         </Box>
       </Paper>
