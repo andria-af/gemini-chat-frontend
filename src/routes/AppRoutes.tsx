@@ -1,13 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Login } from '../pages/Login';
-import { Chat } from '../pages/Chat';
+import { LoginPage } from '../pages/Loginpage';
+import { ChatPage } from '../pages/ChatPage';
 
 export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/chat" element={<ChatPage />} />
       </Routes>
     </BrowserRouter>
   );
