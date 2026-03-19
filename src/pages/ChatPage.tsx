@@ -24,11 +24,15 @@ import { AppSnackbar } from "../components/AppSnackbar";
 import { clearUser, getUser } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
 import { useThemeMode } from "../context/ThemeModeContext";
+import { socket } from "../services/socket";
+import ReactMarkdown from "react-markdown";
 
 export default function ChatPage() {
   const user = getUser();
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const joinedConversationRef = useRef<string | null>(null);
+
   const { mode, toggleMode } = useThemeMode();
 
   const [conversations, setConversations] = useState<IConversation[]>([]);
@@ -38,7 +42,8 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
@@ -49,7 +54,66 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sendingMessage]);
+  }, [messages, isAssistantTyping]);
+
+  useEffect(() => {
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedConversation) return;
+
+    if (joinedConversationRef.current !== selectedConversation.id) {
+      socket.emit("joinConversation", {
+        conversationId: selectedConversation.id,
+      });
+      joinedConversationRef.current = selectedConversation.id;
+    }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    function handleMessageCreated(payload: { message: IMessage }) {
+      if (payload.message.conversationId !== selectedConversation?.id) return;
+
+      setMessages((prev) => {
+        const exists = prev.some((msg) => msg.id === payload.message.id);
+        if (exists) return prev;
+
+        const withoutTemp =
+          payload.message.role === "user"
+            ? prev.filter(
+                (msg) =>
+                  !(
+                    msg.id.startsWith("temp-user-") &&
+                    msg.content === payload.message.content
+                  ),
+              )
+            : prev;
+
+        return [...withoutTemp, payload.message];
+      });
+    }
+
+    function handleAssistantTyping(payload: {
+      conversationId: string;
+      status: boolean;
+    }) {
+      if (payload.conversationId !== selectedConversation?.id) return;
+      setIsAssistantTyping(payload.status);
+    }
+
+    socket.on("messageCreated", handleMessageCreated);
+    socket.on("assistantTyping", handleAssistantTyping);
+
+    return () => {
+      socket.off("messageCreated", handleMessageCreated);
+      socket.off("assistantTyping", handleAssistantTyping);
+    };
+  }, [selectedConversation]);
 
   async function loadConversations(userId: string) {
     try {
@@ -75,12 +139,14 @@ export default function ChatPage() {
     setSelectedConversation(newConversation);
     setMessages([]);
     setInput("");
+    setIsAssistantTyping(false);
   }
 
   async function handleSelectConversation(conversation: IConversation) {
     try {
       setSelectedConversation(conversation);
       setLoadingMessages(true);
+      setIsAssistantTyping(false);
       const data = await getConversationMessages(conversation.id);
       setMessages(data);
     } finally {
@@ -89,11 +155,18 @@ export default function ChatPage() {
   }
 
   async function handleSendMessage() {
-    if (!selectedConversation || !input.trim() || sendingMessage) return;
+    if (
+      !selectedConversation ||
+      !input.trim() ||
+      isSubmittingMessage ||
+      isAssistantTyping
+    ) {
+      return;
+    }
 
     const content = input.trim();
     setInput("");
-    setSendingMessage(true);
+    setIsSubmittingMessage(true);
 
     const optimisticUserMessage: IMessage = {
       id: `temp-user-${Date.now()}`,
@@ -106,20 +179,9 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimisticUserMessage]);
 
     try {
-      const response = await sendMessage({
+      await sendMessage({
         conversationId: selectedConversation.id,
         content,
-      });
-
-      setMessages((prev) => {
-        const withoutTemp = prev.filter(
-          (msg) => msg.id !== optimisticUserMessage.id,
-        );
-        return [
-          ...withoutTemp,
-          response.userMessage,
-          response.assistantMessage,
-        ];
       });
 
       const updatedConversations = await getUserConversations(user!.id);
@@ -138,7 +200,7 @@ export default function ChatPage() {
       );
       showError("Não foi possível enviar a mensagem.");
     } finally {
-      setSendingMessage(false);
+      setIsSubmittingMessage(false);
     }
   }
 
@@ -181,7 +243,7 @@ export default function ChatPage() {
               </Typography>
             </Box>
 
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
               <Button variant="contained" onClick={handleCreateConversation}>
                 Nova
               </Button>
@@ -279,12 +341,12 @@ export default function ChatPage() {
                       <Typography variant="caption" display="block" mb={0.5}>
                         {message.role === "user" ? "Você" : "Gemini"}
                       </Typography>
-                      <Typography>{message.content}</Typography>
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
                     </Paper>
                   ))
                 )}
 
-                {sendingMessage && (
+                {isAssistantTyping && (
                   <Paper
                     sx={{
                       p: 2,
@@ -320,7 +382,9 @@ export default function ChatPage() {
                 <Button
                   variant="contained"
                   onClick={handleSendMessage}
-                  disabled={!input.trim() || sendingMessage}
+                  disabled={
+                    !input.trim() || isSubmittingMessage || isAssistantTyping
+                  }
                 >
                   Enviar
                 </Button>
@@ -329,6 +393,7 @@ export default function ChatPage() {
           )}
         </Box>
       </Paper>
+
       <AppSnackbar
         open={snackbarOpen}
         message={snackbarMessage}
