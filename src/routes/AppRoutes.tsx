@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { LoginPage } from '../pages/Loginpage';
-import { ChatPage } from '../pages/ChatPage';
+
+import LoginPage from "../pages/login/LoginPage";
+import ChatPage from '../pages/chat/ChatPage';
+
+
 
 export function AppRoutes() {
   return (
