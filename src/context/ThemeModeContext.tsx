@@ -1,19 +1,37 @@
-import { createContext, useContext, useMemo, useState } from 'react';
-import { createTheme, CssBaseline, ThemeProvider } from '@mui/material';
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
 
 interface ThemeModeContextData {
-  mode: 'light' | 'dark';
+  mode: "light" | "dark";
   toggleMode: () => void;
 }
 
 const ThemeModeContext = createContext<ThemeModeContextData | null>(null);
 
-export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
+const THEME_STORAGE_KEY = "theme-mode";
+
+export function ThemeModeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [mode, setMode] = useState<"light" | "dark">(() => {
+    const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
+
+    if (savedMode === "light" || savedMode === "dark") {
+      return savedMode;
+    }
+
+    return "light";
+  });
 
   const toggleMode = () => {
-    setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setMode((prev) => (prev === "light" ? "dark" : "light"));
   };
+
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+  }, [mode]);
 
   const theme = useMemo(
     () =>
@@ -42,7 +60,7 @@ export function useThemeMode() {
   const context = useContext(ThemeModeContext);
 
   if (!context) {
-    throw new Error('useThemeMode must be used within ThemeModeProvider');
+    throw new Error("useThemeMode must be used within ThemeModeProvider");
   }
 
   return context;
