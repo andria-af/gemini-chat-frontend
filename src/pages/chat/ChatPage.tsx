@@ -32,6 +32,7 @@ export default function ChatPage() {
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [isNewChat, setIsNewChat] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -114,56 +115,28 @@ export default function ChatPage() {
   }
 
   async function handleCreateConversation() {
-    if (!user) return;
-
-    try {
-      const newConversation = await createConversation({
-        userId: user.id,
-        title: "Nova conversa",
-      });
-
-      setConversations((prev) => [newConversation, ...prev]);
-      setSelectedConversation(newConversation);
-      setMessages([]);
-      setInput("");
-      setIsAssistantTyping(false);
-    } catch {
-      showError("Não foi possível criar uma nova conversa.");
-    }
+    setSelectedConversation(null);
+    setMessages([]);
+    setInput("");
+    setIsAssistantTyping(false);
+    setIsNewChat(true);
   }
 
   async function handleSelectConversation(conversation: IConversation) {
     try {
       setSelectedConversation(conversation);
+      setIsNewChat(false);
       setLoadingMessages(true);
       setIsAssistantTyping(false);
       const data = await getConversationMessages(conversation.id);
       setMessages(data);
-    } catch {
-      showError("Não foi possível carregar as mensagens.");
     } finally {
       setLoadingMessages(false);
     }
   }
 
-  async function ensureConversationBeforeSend() {
-    if (selectedConversation || !user) return selectedConversation;
-
-    const newConversation = await createConversation({
-      userId: user.id,
-      title: "Nova conversa",
-    });
-
-    setConversations((prev) => [newConversation, ...prev]);
-    setSelectedConversation(newConversation);
-    setMessages([]);
-    setIsAssistantTyping(false);
-
-    return newConversation;
-  }
-
   async function handleSendMessage() {
-    if (!input.trim() || isSubmittingMessage || isAssistantTyping || !user) {
+    if (!user || !input.trim() || isSubmittingMessage || isAssistantTyping) {
       return;
     }
 
@@ -174,17 +147,20 @@ export default function ChatPage() {
     let activeConversation = selectedConversation;
 
     try {
-      activeConversation = await ensureConversationBeforeSend();
-
       if (!activeConversation) {
-        throw new Error("Conversation not created");
-      }
+        activeConversation = await createConversation({
+          userId: user.id,
+          title: "Nova conversa",
+        });
 
-      const conversationId = activeConversation.id;
+        setSelectedConversation(activeConversation);
+        setConversations((prev) => [activeConversation!, ...prev]);
+        setIsNewChat(false);
+      }
 
       const optimisticUserMessage: IMessage = {
         id: `temp-user-${Date.now()}`,
-        conversationId,
+        conversationId: activeConversation.id,
         role: "user",
         content,
         createdAt: new Date().toISOString(),
@@ -193,7 +169,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, optimisticUserMessage]);
 
       await sendMessage({
-        conversationId,
+        conversationId: activeConversation.id,
         content,
       });
 
@@ -201,7 +177,7 @@ export default function ChatPage() {
       setConversations(updatedConversations);
 
       const updatedSelected = updatedConversations.find(
-        (conversation) => conversation.id === conversationId,
+        (conversation) => conversation.id === activeConversation!.id,
       );
 
       if (updatedSelected) {
@@ -212,7 +188,6 @@ export default function ChatPage() {
         prev.filter((msg) => !msg.id.startsWith("temp-user-")),
       );
       showError("Não foi possível enviar a mensagem.");
-      setInput(content);
     } finally {
       setIsSubmittingMessage(false);
     }
@@ -240,6 +215,7 @@ export default function ChatPage() {
       loadingMessages={loadingMessages}
       isSubmittingMessage={isSubmittingMessage}
       isAssistantTyping={isAssistantTyping}
+      isNewChat={isNewChat}
       snackbarOpen={snackbarOpen}
       snackbarMessage={snackbarMessage}
       bottomRef={bottomRef}

@@ -21,6 +21,7 @@ import type { IConversation } from "../../types/conversation";
 import type { IMessage } from "../../types/message";
 import { AppSnackbar } from "../../components/AppSnackbar";
 import { ButtonPrimary } from "../../components/ButtonPrimary";
+import { appBackgrounds, appShadows } from "../../theme/theme";
 
 type ChatViewProps = {
   user: { username: string } | null;
@@ -33,6 +34,7 @@ type ChatViewProps = {
   loadingMessages: boolean;
   isSubmittingMessage: boolean;
   isAssistantTyping: boolean;
+  isNewChat: boolean;
   snackbarOpen: boolean;
   snackbarMessage: string;
   bottomRef: RefObject<HTMLDivElement | null>;
@@ -66,6 +68,7 @@ export function ChatView({
   onSendMessage,
   onLogout,
   onCloseSnackbar,
+  isNewChat,
 }: ChatViewProps) {
   return (
     <Box
@@ -74,14 +77,8 @@ export function ChatView({
         p: 2,
         background: (theme) =>
           theme.palette.mode === "dark"
-            ? `
-              radial-gradient(circle at top, rgba(120,130,160,0.18), transparent 35%),
-              linear-gradient(135deg, #0f1115 0%, #171a21 45%, #111318 100%)
-            `
-            : `
-              radial-gradient(circle at top, rgba(148,163,184,0.18), transparent 35%),
-              linear-gradient(135deg, #f5f7fb 0%, #edf1f7 45%, #e9eef5 100%)
-            `,
+            ? appBackgrounds.dark
+            : appBackgrounds.light,
       }}
     >
       <Paper
@@ -96,8 +93,8 @@ export function ChatView({
           borderColor: "divider",
           boxShadow: (theme) =>
             theme.palette.mode === "dark"
-              ? "0 20px 50px rgba(0,0,0,0.35)"
-              : "0 20px 50px rgba(15,23,42,0.08)",
+              ? appShadows.darkCard
+              : appShadows.lightCard,
           backdropFilter: "blur(8px)",
           backgroundColor: "background.paper",
         }}
@@ -176,10 +173,7 @@ export function ChatView({
                 )}
               </IconButton>
 
-              <ButtonPrimary
-                onClick={onLogout}
-                sx={{ flex: 1, minHeight: 40 }}
-              >
+              <ButtonPrimary onClick={onLogout} sx={{ flex: 1, minHeight: 40 }}>
                 Sair
               </ButtonPrimary>
             </Stack>
@@ -194,7 +188,7 @@ export function ChatView({
             minHeight: 0,
           }}
         >
-          {!selectedConversation ? (
+          {!selectedConversation && !isNewChat ? (
             <Box
               sx={{
                 flex: 1,
@@ -270,7 +264,7 @@ export function ChatView({
           ) : (
             <>
               <Typography variant="h6" fontWeight={700} mb={2}>
-                {selectedConversation.title || "Conversa"}
+                {selectedConversation?.title || "Nova conversa"}
               </Typography>
 
               <Box
@@ -360,8 +354,10 @@ export function ChatView({
                         onSendMessage();
                       }
                     }}
-                    InputProps={{
-                      disableUnderline: true,
+                    slotProps={{
+                      input: {
+                        disableUnderline: true,
+                      },
                     }}
                   />
 

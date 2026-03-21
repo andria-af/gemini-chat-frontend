@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+import { lightTheme, darkTheme } from "../theme/theme";
 
 interface ThemeModeContextData {
   mode: "light" | "dark";
@@ -33,18 +34,9 @@ export function ThemeModeProvider({
     localStorage.setItem(THEME_STORAGE_KEY, mode);
   }, [mode]);
 
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode,
-        },
-        shape: {
-          borderRadius: 12,
-        },
-      }),
-    [mode],
-  );
+  const theme = useMemo(() => {
+    return mode === "light" ? lightTheme : darkTheme;
+  }, [mode]);
 
   return (
     <ThemeModeContext.Provider value={{ mode, toggleMode }}>

@@ -10,6 +10,7 @@ import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import robotGemini from "../../assets/robot-gemini.png";
 import { ButtonPrimary } from "../../components/ButtonPrimary";
+import { appBackgrounds, appShadows } from "../../theme/theme";
 
 type LoginViewProps = {
   username: string;
@@ -18,7 +19,7 @@ type LoginViewProps = {
   mode: "light" | "dark";
   onUsernameChange: (value: string) => void;
   onToggleTheme: () => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 };
 
 export function LoginView({
@@ -40,6 +41,10 @@ export function LoginView({
           justifyContent: "center",
           position: "relative",
           py: 4,
+          background: (theme) =>
+            theme.palette.mode === "dark"
+              ? appBackgrounds.dark
+              : appBackgrounds.light,
         }}
       >
         <IconButton
@@ -80,8 +85,8 @@ export function LoginView({
                 maxWidth: "55%",
                 filter: (theme) =>
                   theme.palette.mode === "dark"
-                    ? "drop-shadow(0 10px 24px rgba(0,0,0,0.45))"
-                    : "drop-shadow(0 10px 20px rgba(15,23,42,0.18))",
+                    ? appShadows.darkRobot
+                    : appShadows.lightRobot,
               }}
             />
           </Box>
@@ -96,8 +101,8 @@ export function LoginView({
               borderColor: "divider",
               boxShadow: (theme) =>
                 theme.palette.mode === "dark"
-                  ? "0 20px 50px rgba(0,0,0,0.35)"
-                  : "0 20px 50px rgba(15,23,42,0.08)",
+                  ? appShadows.darkCard
+                  : appShadows.lightCard,
               backdropFilter: "blur(8px)",
             }}
             elevation={0}
