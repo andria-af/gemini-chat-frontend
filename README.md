@@ -1,48 +1,72 @@
+# 🤖 Gemini Chat — Frontend
+Interface web desenvolvida em **React** com as atividades:
 
----
+* login simples por username
+* criação e listagem de conversas
+* envio de mensagens
+* exibição de respostas da IA (Gemini)
+* atualização em tempo real via WebSocket
+* tema claro/escuro
+* feedback visual de loading e erros
 
-# 💻 Frontend — `growdev-chat-frontend`
+## Tecnologias:
+* React (Vite)
+* TypeScript
+* MUI (Material UI)
+* Axios
+* Socket.IO Client
 
-```md
-# 💬 growdev-chat-frontend
+### Deploy Render: https://gemini-chat-frontend-549c.onrender.com
 
-Interface web do sistema de chat.
-
----
-
-## 🧱 Stack
-
-- React
-- Vite
-- TypeScript
-- MUI (Material UI)
-- React Router
-
----
-
-## ▶️ Como rodar
+### Instalação
 
 ```bash
-# instalar dependências
 npm install
+```
+### Variáveis de ambiente
+Crie um arquivo .env:
+```bash
+VITE_API_URL=http://localhost:3000
+VITE_SOCKET_URL=http://localhost:3000
+```
 
-# iniciar aplicação
+▶️ Como rodar o projeto local:
+```bash
 npm run dev
+```
+### Build produção
+```bash
+npm run build
+npm run preview
+```
 
-📌 Status
+### Funcionalidades
+* autenticação simples integrada ao backend
+* gerenciamento de conversas
+* envio e recebimento de mensagens com IA
+* atualização em tempo real (WebSocket)
+* indicador de digitação da IA
+* persistência de histórico
+* interface responsiva
 
-🚧 Em desenvolvimento
 
- Estrutura inicial
+### Observações
+* O frontend consome a API do backend NestJS.
+* As mensagens são atualizadas em tempo real via Socket.IO.
+* O estado do usuário é mantido no localStorage.
 
- Rotas (Login / Chat)
+---
 
- Layout base das telas
+## Screenshots
 
- Tema (light/dark preparado)
+### Login
+![Login](./docs/images/login.jpeg)
 
- Integração com backend
+### Chat
+![Chat](./docs/images/chat.jpeg)
 
- Autenticação
+### Conversa
+![Conversa](./docs/images/conversation.jpeg)
 
- Chat funcional
+### Dark Mode
+![Dark Mode](./docs/images/dark-mode.jpeg)
